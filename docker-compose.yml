@@ -50,22 +50,6 @@ services:
     networks:
       - ytb2bili-network
 
-  # 可选: Nginx 反向代理
-  nginx:
-    image: nginx:alpine
-    container_name: ytb2bili-nginx
-    ports:
-      - "9080:80"
-      - "9443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/ssl/certs:ro
-    depends_on:
-      - ytb2bili
-    restart: unless-stopped
-    networks:
-      - ytb2bili-network
-
 volumes:
   ytb2bili_data:
     driver: local

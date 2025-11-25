@@ -1,5 +1,3 @@
-# 使用 difyz9/ytb2bili:latest 镜像部署指南
-
 ## 概述
 
 `difyz9/ytb2bili:latest` 是一个预构建的 Docker 镜像，包含了完整的 YouTube 视频下载并上传到 Bilibili 的自动化工具。
@@ -300,23 +298,6 @@ docker compose restart ytb2bili
 ```yaml
 ports:
   - "8080:8096"  # 将 8096 改为 8080
-```
-
-### 使用 Nginx 反向代理
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    location / {
-        proxy_pass http://localhost:8096;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
 ```
 
 ## 故障排查
