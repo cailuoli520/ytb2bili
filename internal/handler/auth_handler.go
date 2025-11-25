@@ -257,10 +257,13 @@ type CheckLoginStatusResponse struct {
 }
 
 type UserInfo struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Mid    string `json:"mid"`
-	Avatar string `json:"avatar"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Mid       string `json:"mid"`
+	Avatar    string `json:"avatar"`
+	Level     int    `json:"level"`      // 用户等级
+	Fans      int    `json:"fans"`       // 粉丝数
+	Attention int    `json:"attention"`  // 关注数
 }
 
 // checkLoginStatus 检查本地登录信息是否有效
@@ -281,10 +284,13 @@ func (h *AuthHandler) checkLoginStatus(c *gin.Context) {
 		if err == nil && cachedUserInfo != nil {
 			// 使用缓存的用户信息
 			response.User = &UserInfo{
-				ID:     fmt.Sprintf("%d", cachedUserInfo.Mid),
-				Name:   cachedUserInfo.Name,
-				Mid:    fmt.Sprintf("%d", cachedUserInfo.Mid),
-				Avatar: cachedUserInfo.Face,
+				ID:        fmt.Sprintf("%d", cachedUserInfo.Mid),
+				Name:      cachedUserInfo.Name,
+				Mid:       fmt.Sprintf("%d", cachedUserInfo.Mid),
+				Avatar:    cachedUserInfo.Face,
+				Level:     cachedUserInfo.Level,
+				Fans:      cachedUserInfo.Fans,
+				Attention: cachedUserInfo.Attention,
 			}
 		} else {
 			// 没有缓存的用户信息，从API获取
@@ -335,10 +341,20 @@ func (h *AuthHandler) checkLoginStatus(c *gin.Context) {
 				}
 
 				response.User = &UserInfo{
-					ID:     userMid,
-					Name:   userName,
-					Mid:    userMid,
-					Avatar: userAvatar,
+					ID:        userMid,
+					Name:      userName,
+					Mid:       userMid,
+					Avatar:    userAvatar,
+					Level:     0,
+					Fans:      0,
+					Attention: 0,
+				}
+
+				// 如果有用户详细信息，填充等级和粉丝数
+				if userBasicInfo != nil {
+					response.User.Level = userBasicInfo.Level
+					response.User.Fans = userBasicInfo.Fans
+					response.User.Attention = userBasicInfo.Attention
 				}
 			}
 		}

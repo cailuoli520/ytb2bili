@@ -1,11 +1,45 @@
 # 多阶段构建 Dockerfile
-# Stage 1: 构建Go后端
-FROM golang:1.21-alpine AS backend-builder
+# Stage 1: 构建 whisper.cpp
+FROM alpine:latest AS whisper-builder
 
-# 安装构建依赖
-RUN apk add --no-cache git ca-certificates tzdata
+RUN apk add --no-cache \
+    git \
+    build-base \
+    cmake
+
+WORKDIR /whisper
+
+# 克隆并编译 whisper.cpp
+RUN git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git . && \
+    cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF && \
+    cmake --build build --target whisper
+
+# Stage 2: 构建Go后端
+FROM golang:1.24-alpine AS backend-builder
+
+# 安装构建依赖（包括 CGO 和 Whisper 所需的依赖）
+RUN apk add --no-cache \
+    git \
+    ca-certificates \
+    tzdata \
+    gcc \
+    g++ \
+    make \
+    musl-dev
 
 WORKDIR /app
+
+# 从 whisper-builder 复制编译好的库和头文件
+COPY --from=whisper-builder /whisper/build/src/libwhisper.a /usr/local/lib/
+COPY --from=whisper-builder /whisper/build/ggml/src/libggml.a /usr/local/lib/
+COPY --from=whisper-builder /whisper/build/ggml/src/libggml-base.a /usr/local/lib/
+COPY --from=whisper-builder /whisper/build/ggml/src/libggml-cpu.a /usr/local/lib/
+COPY --from=whisper-builder /whisper/include/whisper.h /usr/local/include/
+COPY --from=whisper-builder /whisper/ggml/include/*.h /usr/local/include/
+
+# 设置环境变量
+ENV CGO_CFLAGS="-I/usr/local/include"
+ENV CGO_LDFLAGS="-L/usr/local/lib -lwhisper -lggml -lggml-base -lggml-cpu -lm -lstdc++"
 
 # 复制 Go 模块文件
 COPY go.mod go.sum ./
@@ -14,17 +48,17 @@ RUN go mod download
 # 复制源代码
 COPY . .
 
-# 构建Go应用
+# 构建Go应用（启用 CGO 以支持 Whisper）
 ARG VERSION=dev
 ARG BUILD_TIME
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN CGO_ENABLED=1 GOOS=linux go build \
     -ldflags="-s -w -X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME}" \
     -o ytb2bili-server .
 
-# Stage 2: 运行阶段
+# Stage 3: 运行阶段
 FROM alpine:latest
 
-# 安装运行时依赖
+# 安装运行时依赖（包括 libstdc++ 和 libgcc 用于 Whisper CGO 支持）
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
@@ -32,6 +66,8 @@ RUN apk add --no-cache \
     python3 \
     py3-pip \
     ffmpeg \
+    libstdc++ \
+    libgcc \
     && pip3 install --break-system-packages yt-dlp \
     && rm -rf /var/cache/apk/*
 
