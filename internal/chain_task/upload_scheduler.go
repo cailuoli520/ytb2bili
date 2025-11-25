@@ -52,6 +52,9 @@ func NewUploadScheduler(
 
 // SetUp 启动上传调度器
 func (s *UploadScheduler) SetUp() {
+	// 初始化时重置所有上传相关的运行中任务
+	s.resetUploadTasksOnStartup()
+
 	// 每5分钟检查一次是否需要上传
 	s.Task.AddFunc("*/5 * * * *", func() {
 		s.mutex.Lock()
@@ -81,6 +84,35 @@ func (s *UploadScheduler) SetUp() {
 	})
 
 	s.logger.Info("✓ Upload scheduler started, checking every 5 minutes")
+}
+
+// resetUploadTasksOnStartup 应用启动时重置所有上传相关的运行中任务
+func (s *UploadScheduler) resetUploadTasksOnStartup() {
+	s.logger.Info("🔄 正在重置应用重启前的运行中上传任务...")
+
+	// 重置上传阶段的任务步骤
+	uploadSteps := []string{
+		"上传到Bilibili",
+		"上传字幕到Bilibili",
+	}
+
+	for _, stepName := range uploadSteps {
+		if err := s.TaskStepService.ResetRunningTasksByStepName(stepName); err != nil {
+			s.logger.Errorf("❌ 重置运行中任务步骤 %s 失败: %v", stepName, err)
+		}
+	}
+
+	// 重置状态为 201(上传视频中) 的视频回到 200(准备完成)
+	if err := s.Db.Exec("UPDATE cw_saved_videos SET status = '200' WHERE status = '201' AND deleted_at IS NULL").Error; err != nil {
+		s.logger.Errorf("❌ 重置上传视频中的状态失败: %v", err)
+	}
+
+	// 重置状态为 301(上传字幕中) 的视频回到 300(视频已上传)
+	if err := s.Db.Exec("UPDATE cw_saved_videos SET status = '300' WHERE status = '301' AND deleted_at IS NULL").Error; err != nil {
+		s.logger.Errorf("❌ 重置上传字幕中的状态失败: %v", err)
+	}
+
+	s.logger.Info("✅ 已重置所有运行中的上传任务")
 }
 
 // uploadNextVideo 上传下一个准备好的视频

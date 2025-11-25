@@ -129,16 +129,15 @@ func main() {
 			return checkYtDlpInstallation(logger, config)
 		}),
 
-		fx.Provide(chain_task.NewChainTaskHandler),
-		fx.Invoke(func(h *chain_task.ChainTaskHandler) {
-			// 设置并启动任务消费者（准备阶段：下载、字幕、翻译、元数据）
+		// 下载任务链处理器（准备阶段：下载、字幕、翻译、元数据）
+		fx.Provide(chain_task.NewDownloadChainHandler),
+		fx.Invoke(func(h *chain_task.DownloadChainHandler) {
 			h.SetUp()
 		}),
 
-		// 添加上传调度器
+		// 上传调度器（上传阶段：每小时上传视频，1小时后上传字幕）
 		fx.Provide(chain_task.NewUploadScheduler),
 		fx.Invoke(func(s *chain_task.UploadScheduler) {
-			// 设置并启动上传调度器（上传阶段：每小时上传视频，1小时后上传字幕）
 			s.SetUp()
 		}),
 

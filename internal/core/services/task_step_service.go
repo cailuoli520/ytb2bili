@@ -255,3 +255,42 @@ func (s *TaskStepService) DeleteTaskStepsByVideoID(videoID string) error {
 	}
 	return nil
 }
+
+// ResetRunningTasksByStepName 重置指定步骤名称的所有运行中任务
+func (s *TaskStepService) ResetRunningTasksByStepName(stepName string) error {
+	result := s.DB.Model(&model.TaskStep{}).
+		Where("step_name = ? AND status = ?", stepName, "Running").
+		Update("status", "Pending")
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to reset running task steps for %s: %v", stepName, result.Error)
+	}
+
+	if result.RowsAffected > 0 {
+		log.Printf("Reset %d running task steps for step: %s", result.RowsAffected, stepName)
+	}
+
+	return nil
+}
+
+// GetPendingStepsByNames 获取指定步骤名称列表中状态为pending的任务步骤
+func (s *TaskStepService) GetPendingStepsByNames(stepNames []string) ([]*model.TaskStep, error) {
+	var steps []*model.TaskStep
+
+	// 使用 JOIN 查询，只获取未删除视频的待处理步骤
+	result := s.DB.Table("cw_task_steps").
+		Select("cw_task_steps.*").
+		Joins("INNER JOIN cw_saved_videos ON cw_task_steps.video_id = cw_saved_videos.video_id").
+		Where("cw_task_steps.step_name IN ?", stepNames).
+		Where("cw_task_steps.status = ?", model.TaskStepStatusPending).
+		Where("cw_task_steps.deleted_at IS NULL").
+		Where("cw_saved_videos.deleted_at IS NULL").
+		Order("cw_task_steps.created_at ASC").
+		Find(&steps)
+
+	if result.Error != nil {
+		return nil, fmt.Errorf("查询待重试步骤失败: %v", result.Error)
+	}
+
+	return steps, nil
+}
