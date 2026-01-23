@@ -1,6 +1,6 @@
 # Docker 部署指南
 
-本文档说明如何使用 Docker 部署 ytb2bili 应用，包括前后端分离架构和 SQLite 支持。
+本文档说明如何使用 Docker 部署 ytb2bili 应用，包括前后端分离架构和多数据库支持。
 
 ## 📋 目录
 
@@ -19,9 +19,8 @@
 ### 新架构特性（PR #1）
 
 1. **前后端分离**：前端使用独立的 Nginx 容器，后端为 Go 应用
-2. **SQLite 支持**：后端支持 SQLite 数据库（适合单机部署）
-3. **多数据库支持**：可选 MySQL/PostgreSQL（适合生产环境）
-4. **反向代理**：Nginx 自动转发 API 请求到后端
+2. **多数据库支持**：支持 MySQL/PostgreSQL（适合生产环境）
+3. **反向代理**：Nginx 自动转发 API 请求到后端
 
 ### 服务组件
 
@@ -47,7 +46,7 @@
          ▼
 ┌─────────────────┐
 │   Database      │
-│  SQLite/MySQL   │
+│     MySQL       │
 └─────────────────┘
 ```
 
@@ -64,29 +63,31 @@
 
 ## 🚀 快速开始
 
-### 方式一：使用 SQLite（推荐新手）
-
 **1. 克隆项目**
 ```bash
 git clone https://github.com/difyz9/ytb2bili.git
 cd ytb2bili
 ```
 
-**2. 配置数据库类型**
+**2. 配置数据库**
 ```bash
 cp config.toml.example config.toml
 ```
 
-编辑 `config.toml`，设置数据库为 SQLite：
+编辑 `config.toml`，设置数据库连接：
 ```toml
 [database]
-type = "sqlite"
-dsn = "/data/ytb2bili/ytb2bili.db"
+type = "mysql"
+host = "mysql"
+port = 3306
+username = "ytb2bili"
+password = "ytb2bili_2024"
+database = "ytb2bili"
 ```
 
-**3. 启动服务（仅后端 + 前端）**
+**3. 启动所有服务**
 ```bash
-docker-compose up -d ytb2bili frontend
+docker-compose up -d
 ```
 
 **4. 访问应用**
@@ -96,7 +97,7 @@ docker-compose up -d ytb2bili frontend
 
 ---
 
-### 方式二：使用 MySQL（推荐生产）
+## 📦 部署模式
 
 **1. 配置环境变量**
 ```bash
@@ -153,11 +154,11 @@ docker-compose logs -f
 docker-compose ps
 ```
 
-### 3. 最小化部署（仅必需服务）
+### 3. 最小化部署（前后端 + MySQL）
 
 ```bash
-# 后端 + 前端 + SQLite（无 MySQL/Redis）
-docker-compose up -d ytb2ibili frontend
+# 后端 + 前端 + MySQL（无 Redis）
+docker-compose up -d ytb2bili frontend mysql
 ```
 
 ---
@@ -203,22 +204,12 @@ Docker Compose 自动创建以下 Volume：
 
 | Volume 名称 | 挂载路径 | 用途 |
 |-------------|----------|------|
-| `ytb2bili_data` | `/data/ytb2bili` | 应用数据（SQLite DB、临时文件） |
+| `ytb2bili_data` | `/data/ytb2bili` | 应用数据（临时文件、视频缓存） |
 | `ytb2bili_logs` | `/app/logs` | 应用日志 |
 | `mysql_data` | `/var/lib/mysql` | MySQL 数据文件 |
 | `redis_data` | `/data` | Redis 数据 |
 
 ### 备份数据
-
-**SQLite 备份**：
-```bash
-# 导出数据库
-docker exec ytb2bili-app cp /data/ytb2bili/ytb2bili.db /app/backup.db
-docker cp ytb2bili-app:/app/backup.db ./ytb2bili-backup-$(date +%Y%m%d).db
-
-# 恢复数据库
-docker cp ./ytb2bili-backup.db ytb2bili-app:/data/ytb2bili/ytb2bili.db
-```
 
 **MySQL 备份**：
 ```bash
@@ -419,15 +410,10 @@ docker system prune -a
 ### PR #1 - Docker 重构（2025-01-23）
 
 **新增功能**：
-- ✅ SQLite 支持（CGO 编译）
 - ✅ 前后端分离架构
 - ✅ Nginx 反向代理
 - ✅ 独立前端容器
-
-**迁移指南**：
-旧版本用户无需修改配置，新架构完全向后兼容。如需使用 SQLite：
-1. 修改 `config.toml` 中 `database.type = "sqlite"`
-2. 重启服务：`docker-compose restart ytb2bili`
+- ✅ 多数据库支持 (MySQL/PostgreSQL)
 
 ---
 

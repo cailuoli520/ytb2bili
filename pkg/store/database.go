@@ -8,7 +8,6 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
@@ -50,14 +49,8 @@ func NewDatabase(config *types.AppConfig) (*gorm.DB, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to MySQL: %w", err)
 		}
-	case "sqlite", "sqlite3":
-		dsn := config.Database.GetDSN()
-		db, err = gorm.Open(sqlite.Open(dsn), gormConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect to SQLite: %w", err)
-		}
 	default:
-		return nil, fmt.Errorf("unsupported database type: %s (supported: postgres, mysql, sqlite)", config.Database.Type)
+		return nil, fmt.Errorf("unsupported database type: %s (supported: postgres, mysql)", config.Database.Type)
 	}
 
 	// 获取底层的sql.DB对象
@@ -66,15 +59,10 @@ func NewDatabase(config *types.AppConfig) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// 设置连接池参数（SQLite 不需要连接池，但设置也不会有问题）
-	if config.Database.Type != "sqlite" && config.Database.Type != "sqlite3" {
-		sqlDB.SetMaxIdleConns(10)
-		sqlDB.SetMaxOpenConns(100)
-		sqlDB.SetConnMaxLifetime(time.Hour)
-	} else {
-		// SQLite 使用单个连接
-		sqlDB.SetMaxOpenConns(1)
-	}
+	// 设置连接池参数
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	return db, nil
 }

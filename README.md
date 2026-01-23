@@ -39,7 +39,7 @@
 - **语言**: Go 1.24+ (支持最新语言特性)
 - **Web 框架**: Gin (高性能HTTP框架)
 - **ORM**: GORM v2 (支持多数据库)
-- **数据库**: MySQL 8.0+ / PostgreSQL 15+ / SQLite (开发环境)
+- **数据库**: MySQL 8.0+ / PostgreSQL 15+
 - **文件存储**: 腾讯云 COS (支持大文件分片上传)
 - **依赖注入**: Uber FX (声明式依赖管理)
 - **定时任务**: Robfig Cron v3 (精确到秒级调度)
@@ -183,7 +183,7 @@ make build
 |------|----------|------|
 | **Go** | 1.24+ | 后端运行环境 |
 | **Node.js** | 18+ | 前端构建 (仅构建时需要) |
-| **数据库** | MySQL 8.0+ / PostgreSQL 15+ / SQLite | 数据存储 |
+| **数据库** | MySQL 8.0+ / PostgreSQL 15+ | 数据存储 |
 | **yt-dlp** | 最新版 | 视频下载 (自动安装) |
 
 ### ⚙️ 配置设置
@@ -197,9 +197,6 @@ CREATE USER 'ytb2bili'@'localhost' IDENTIFIED BY 'your_secure_password';
 GRANT ALL PRIVILEGES ON ytb2bili.* TO 'ytb2bili'@'localhost';
 FLUSH PRIVILEGES;
 ```
-
-**SQLite (适用开发环境)**:
-无需额外配置，程序会自动创建数据库文件。
 
 #### 2. 配置文件设置
 
@@ -221,7 +218,7 @@ FileUpDir = "/data/ytb2bili/media"  # 文件存储目录 (需要足够磁盘空�
 
 # 数据库配置
 [database]
-  type = "mysql"                    # mysql / postgres / sqlite
+  type = "mysql"                    # mysql / postgres
   host = "localhost"
   port = 3306
   username = "ytb2bili"
@@ -753,9 +750,6 @@ panic: failed to connect to database
    # MySQL
    sudo systemctl status mysql
    mysql -u root -p -e "SELECT 1"
-   
-   # 或使用 SQLite (无需额外服务)
-   # 修改 config.toml: type = "sqlite"
    ```
 
 3. **创建数据库和用户**:

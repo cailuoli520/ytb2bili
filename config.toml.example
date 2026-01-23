@@ -7,14 +7,14 @@ fileUpDir = "/Users/apple/opt/file_upload/media"
 yt_dlp_path = ""
 
 [database]
-  type = "sqlite"
-  host = ""
-  port = 0
-  username = ""
-  password = ""
-  database = "bili_up.db"
+  type = "mysql"
+  host = "localhost"
+  port = 3306
+  username = "root"
+  password = "your_password"
+  database = "bili_up"
   ssl_mode = ""
-  timezone = ""
+  timezone = "Asia/Shanghai"
 
 [auth]
   jwt_secret = "your-jwt-secret-key"
