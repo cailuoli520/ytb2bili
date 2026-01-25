@@ -22,6 +22,15 @@ export default {
           blue: '#00a1d6',
         }
       },
+      keyframes: {
+        scan: {
+          '0%': { top: '0%' },
+          '100%': { top: '100%' },
+        }
+      },
+      animation: {
+        scan: 'scan 2.5s linear infinite',
+      },
     },
   },
   plugins: [],

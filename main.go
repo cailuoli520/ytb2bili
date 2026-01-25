@@ -11,6 +11,7 @@ import (
 	"github.com/difyz9/ytb2bili/pkg/auth"
 	"github.com/difyz9/ytb2bili/pkg/cos"
 	"github.com/difyz9/ytb2bili/pkg/logger"
+	biliAccountService "github.com/difyz9/ytb2bili/pkg/services"
 	"github.com/difyz9/ytb2bili/pkg/store"
 	"context"
 	"github.com/gin-gonic/gin"
@@ -118,6 +119,7 @@ func main() {
 		fx.Provide(services.NewVideoService),
 		fx.Provide(services.NewSavedVideoService),
 		fx.Provide(services.NewTaskStepService),
+		fx.Provide(biliAccountService.NewBilibiliAccountService),
 
 		// 注册cron
 		fx.Provide(func() *cron.Cron {
@@ -223,7 +225,7 @@ func main() {
 
 		fx.Provide(handler.NewAccountsHandler),
 		fx.Invoke(func(h *handler.AccountsHandler, server *core.AppServer, logger *zap.SugaredLogger) {
-			h.RegisterRoutes(server)
+			h.RegisterRoutes(server.Engine.Group("/api/v1/accounts"))
 			logger.Info("✓ Accounts routes registered")
 		}),
 

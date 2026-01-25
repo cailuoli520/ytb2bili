@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { getApiBaseUrl, apiFetch } from '@/lib/api';
-import { CheckCircle, XCircle, Link2, ExternalLink, AlertCircle, Loader2, Clock, Info, ShieldCheck, Unlink } from 'lucide-react';
+import { CheckCircle, XCircle, Link2, ExternalLink, AlertCircle, Loader2, Clock, Info, ShieldCheck, Unlink, Star } from 'lucide-react';
+import BindingDialog from '@/components/BindingDialog';
 
 interface AccountStatus {
   platform: string;
@@ -18,10 +19,27 @@ interface AccountStatus {
   bgColor: string;
   description: string;
   isSupported: boolean;
+  isPrimary?: boolean;
+  id?: number;
+}
+
+interface BindingData {
+  id: number;
+  platform: string;
+  platform_uid: string;
+  username: string;
+  avatar: string;
+  status: string;
+  is_primary: boolean;
+  is_active: boolean;
+  create_time: number;
+  last_used_at?: number;
 }
 
 export default function AccountsPage() {
   const { user, loading, handleLoginSuccess, handleRefreshStatus, handleLogout } = useAuth();
+  const [showBindingDialog, setShowBindingDialog] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<{ key: string; name: string } | null>(null);
   const [accounts, setAccounts] = useState<AccountStatus[]>([
     {
       platform: 'bilibili',
@@ -77,47 +95,68 @@ export default function AccountsPage() {
   const [isChecking, setIsChecking] = useState(true);
 
   const checkAccountStatus = useCallback(async () => {
+    if (!user?.uid) return;
+    
     setIsChecking(true);
     try {
-      const response = await apiFetch('/auth/accounts', {
+      // 使用新的 API: /api/v1/accounts/list
+      const response = await apiFetch(`/accounts/list?user_id=${user.uid}`, {
         method: 'GET',
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.code === 200 && data.data) {
-          // 更新账号状态
-          setAccounts(prev => prev.map(account => {
-            const status = data.data[account.platform];
-            if (status) {
-              return {
-                ...account,
-                connected: status.connected,
-                username: status.username,
-                avatar: status.avatar,
-                connectedAt: status.connected_at
-              };
-            }
-            return account;
-          }));
-        }
+      const data = await response.json();
+      if (data.code === 200 && data.data) {
+        const bindings: BindingData[] = data.data;
+        
+        // 更新账号状态
+        setAccounts(prev => prev.map(account => {
+          const binding = bindings.find((b: BindingData) => b.platform === account.platform);
+          if (binding) {
+            return {
+              ...account,
+              connected: true,
+              username: binding.username,
+              avatar: binding.avatar,
+              connectedAt: new Date(binding.create_time * 1000).toISOString(),
+              isPrimary: binding.is_primary,
+              id: binding.id
+            };
+          }
+          return {
+            ...account,
+            connected: false,
+            username: undefined,
+            avatar: undefined,
+            connectedAt: undefined,
+            isPrimary: false,
+            id: undefined
+          };
+        }));
       }
     } catch (error) {
       console.error('检查账号状态失败:', error);
     } finally {
       setIsChecking(false);
     }
-  }, []); // 空依赖数组，因为函数内部没有使用外部变量
+  }, [user?.uid]);
 
   useEffect(() => {
-    if (user) {
+    if (user?.uid) {
       checkAccountStatus();
     } else {
       setIsChecking(false);
     }
-  }, [user?.id, checkAccountStatus]); // 只依赖user.id而不是整个user对象
+  }, [user?.uid, checkAccountStatus]);
 
-  const handleConnect = async (platform: string) => {
+  const handleConnect = async (platform: string, platformName: string) => {
+    if (platform === 'bilibili') {
+      // B站使用二维码绑定
+      setSelectedPlatform({ key: platform, name: platformName });
+      setShowBindingDialog(true);
+      return;
+    }
+
+    // 其他平台暂时使用旧的OAuth流程
     try {
       const apiBaseUrl = getApiBaseUrl();
       
@@ -146,14 +185,24 @@ export default function AccountsPage() {
     }
   };
 
-  const handleDisconnect = async (platform: string) => {
-    if (!confirm(`确定要解绑${accounts.find(a => a.platform === platform)?.name}账号吗？`)) {
+  const handleBindingSuccess = () => {
+    // 绑定成功后刷新账号列表
+    checkAccountStatus();
+  };
+
+  const handleDisconnect = async (account: AccountStatus) => {
+    if (!confirm(`确定要解绑${account.name}账号吗？`)) {
+      return;
+    }
+
+    if (!account.id) {
+      alert('账号ID不存在');
       return;
     }
 
     try {
-      const response = await apiFetch(`/auth/${platform}/disconnect`, {
-        method: 'POST',
+      const response = await apiFetch(`/accounts/${account.id}`, {
+        method: 'DELETE',
       });
 
       const data = await response.json();
@@ -213,66 +262,97 @@ export default function AccountsPage() {
             ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {accounts.filter(a => a.connected).map((account) => (
-                  <div key={account.platform} className="group relative bg-white rounded-xl border hover:border-blue-300 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden min-h-[280px] flex flex-col">
-                    {/* 顶部装饰条 */}
-                    <div className={`h-1.5 w-full ${account.color} flex-shrink-0`} />
-                    
-                    <div className="p-5 flex-1 flex flex-col">
-                      <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 ${account.color} rounded-full flex items-center justify-center text-sm text-white shadow-sm`}>
+                <div key={account.platform} className="group relative bg-white rounded-xl border border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden">
+                  {/* 背景装饰 */}
+                  <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full ${account.color} opacity-5 blur-3xl group-hover:opacity-10 transition-opacity pointer-events-none`}></div>
+                  
+                  <div className="p-5 flex-1 z-10">
+                    {/* 头部：图标和名称 */}
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 ${account.color} rounded-lg flex items-center justify-center text-white shadow-md transform group-hover:scale-105 transition-transform duration-300`}>
                           {account.icon}
                         </div>
-                        <span className="font-bold text-gray-900">{account.name}</span>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="font-bold text-gray-900 leading-tight">{account.name}</h3>
+                            {account.isPrimary && (
+                              <span title="主账号" className="inline-flex">
+                                <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-gray-500">已授权连接</span>
+                        </div>
                       </div>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse" />
+                      <div className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100 flex items-center gap-1.5 shadow-sm">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
                         已连接
-                      </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center space-x-4 mb-6 min-h-[56px]">
-                      <div className="relative w-14 h-14 flex-shrink-0">
+                    {/* 中部：头像和用户信息 */}
+                    <div className="flex flex-col items-center justify-center py-2 space-y-3">
+                      <div className="relative group/avatar">
+                        <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full opacity-70 group-hover/avatar:opacity-100 transition duration-500 blur-sm"></div>
                         {account.avatar ? (
-                          <img
-                            src={account.avatar}
-                            alt={account.username}
-                            className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-md group-hover:scale-105 transition-transform"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              const nextDiv = e.currentTarget.nextElementSibling as HTMLElement;
-                              if (nextDiv) nextDiv.classList.remove('hidden');
-                            }}
-                          />
-                        ) : null}
-                        <div
-                          className={`w-14 h-14 ${account.color} rounded-full flex items-center justify-center text-2xl text-white shadow-md ${account.avatar ? 'hidden' : ''}`}
-                        >
-                          {account.icon}
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                          <div className="relative p-1 bg-white rounded-full">
+                             <img 
+                               src={account.avatar} 
+                               alt={account.username} 
+                               className="w-16 h-16 rounded-full object-cover shadow-sm border border-gray-100" 
+                               onError={(e) => {
+                                 e.currentTarget.style.display = 'none';
+                                 const nextDiv = e.currentTarget.nextElementSibling as HTMLElement;
+                                 if (nextDiv) nextDiv.classList.remove('hidden');
+                               }}
+                             />
+                             {/* 备用头像占位 */}
+                             <div className={`w-16 h-16 ${account.color} rounded-full flex items-center justify-center text-2xl text-white shadow-inner hidden`}>
+                               {account.username ? account.username.charAt(0).toUpperCase() : '?'}
+                             </div>
+                          </div>
+                        ) : (
+                          <div className="relative p-1 bg-white rounded-full">
+                            <div className={`w-16 h-16 ${account.color} rounded-full flex items-center justify-center text-2xl text-white shadow-inner`}>
+                               {account.icon}
+                            </div>
+                          </div>
+                        )}
+                        <div className="absolute bottom-0 right-0 bg-white rounded-full p-1 shadow-md border border-gray-50">
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 truncate" title={account.username}>{account.username}</h4>
-                        <p className="text-xs text-gray-500 truncate mt-0.5">绑定时间：{account.connectedAt ? new Date(account.connectedAt).toLocaleDateString('zh-CN') : '刚刚'}</p>
+                      
+                      <div className="text-center w-full px-2">
+                        <h4 className="font-bold text-gray-900 truncate text-lg" title={account.username}>{account.username}</h4>
+                        <p className="text-xs text-gray-500 mt-1 font-medium bg-gray-50 inline-block px-2 py-0.5 rounded-full border border-gray-100">
+                          绑定于 {account.connectedAt ? new Date(account.connectedAt).toLocaleDateString('zh-CN') : '刚刚'}
+                        </p>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-400">上次同步</span>
-                        <span className="text-xs font-medium text-gray-600">刚刚</span>
-                      </div>
-                      <button
-                        onClick={() => handleDisconnect(account.platform)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 rounded-md transition-colors text-sm font-medium flex items-center space-x-1"
-                      >
-                        <Unlink className="h-3.5 w-3.5" />
-                        <span>解绑</span>
-                      </button>
+                  {/* 底部操作栏 */}
+                  <div className="bg-gray-50/80 backdrop-blur-sm border-t border-gray-100 px-5 py-3 flex items-center justify-between mt-auto">
+                    <div className="flex flex-col">
+                       <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Status</span>
+                       <span className="text-xs font-bold text-green-600 flex items-center gap-1">
+                         <ShieldCheck className="w-3 h-3" /> 正常同步
+                       </span>
                     </div>
+                    
+                    <button 
+                      onClick={() => handleDisconnect(account)} 
+                      className="group/btn relative overflow-hidden bg-white hover:bg-red-50 text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center gap-1.5 shadow-sm hover:shadow"
+                      title="解绑账号"
+                    >
+                       <Unlink className="w-3.5 h-3.5 transition-transform group-hover/btn:rotate-45" />
+                       <span className="text-xs font-medium">解除绑定</span>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -323,7 +403,7 @@ export default function AccountsPage() {
                       <p className="text-sm text-gray-500 mb-6 min-h-[40px] leading-relaxed">{account.description}</p>
                       
                       <button
-                        onClick={() => handleConnect(account.platform)}
+                        onClick={() => handleConnect(account.platform, account.name)}
                         disabled={isBound || !account.isSupported}
                         className={`w-full rounded-lg h-10 font-medium transition-all ${
                           isBound
@@ -404,6 +484,21 @@ export default function AccountsPage() {
           </div>
         </div>
       </div>
+
+      {/* 绑定对话框 */}
+      {showBindingDialog && selectedPlatform && user?.uid && (
+        <BindingDialog
+          isOpen={showBindingDialog}
+          onClose={() => {
+            setShowBindingDialog(false);
+            setSelectedPlatform(null);
+          }}
+          onSuccess={handleBindingSuccess}
+          platform={selectedPlatform.key}
+          platformName={selectedPlatform.name}
+          userId={user.uid}
+        />
+      )}
     </AppLayout>
   );
 }

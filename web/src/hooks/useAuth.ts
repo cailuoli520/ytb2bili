@@ -4,6 +4,7 @@ import { getFullApiBaseUrl, apiFetch } from '@/lib/api';
 
 interface UserInfo {
   id: string;
+  uid: string;  // Firebase UID，与 id 相同
   name: string;
   mid: string;
   avatar?: string;
@@ -38,6 +39,7 @@ export function useAuth() {
         console.log('Bilibili user is connected:', data.data.bilibili_user);
         setBilibiliUser({
           id: data.data.bilibili_user.mid,
+          uid: data.data.bilibili_user.mid,
           name: data.data.bilibili_user.name,
           mid: data.data.bilibili_user.mid,
           avatar: data.data.bilibili_user.avatar,
@@ -79,6 +81,7 @@ export function useAuth() {
   if (currentUser) {
     user = {
       id: currentUser.uid,
+      uid: currentUser.uid,
       name: currentUser.displayName || currentUser.email || 'Firebase User',
       mid: currentUser.uid,
       avatar: currentUser.photoURL || '',
@@ -88,6 +91,7 @@ export function useAuth() {
   else if (firebaseUser) {
     user = {
       id: firebaseUser.uid,
+      uid: firebaseUser.uid,
       name: firebaseUser.display_name || firebaseUser.email || 'Firebase User',
       mid: firebaseUser.uid,
       avatar: '',
