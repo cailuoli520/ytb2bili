@@ -26,6 +26,7 @@ import (
 	"time"
 )
 
+// openssl rand -base64 32
 // AppLifecycle 应用程序生命周期
 type AppLifecycle struct {
 }
