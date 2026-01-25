@@ -1115,7 +1115,7 @@ copies of the Software...
 - **💬 QQ交流群**: 773066052 (技术交流和问题讨论)
 - **📧 微信联系**: 扫描下方二维码添加微信
 <div align="center">
-<img src="img/60285078e7f5a6a.jpg" alt="QQ群二维码" width="200"/>
+<img src="img/220421_706.png" alt="QQ群二维码" width="200"/>
 <img src="img/751763091471.jpg" alt="微信联系二维码" width="200"/>
 
 <br/>
