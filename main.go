@@ -221,6 +221,12 @@ func main() {
 			logger.Info("✓ Config routes registered")
 		}),
 
+		fx.Provide(handler.NewAccountsHandler),
+		fx.Invoke(func(h *handler.AccountsHandler, server *core.AppServer, logger *zap.SugaredLogger) {
+			h.RegisterRoutes(server)
+			logger.Info("✓ Accounts routes registered")
+		}),
+
 		fx.Provide(handler.NewAnalyticsHandler),
 		fx.Provide(handler.NewVideoHandler),
 		fx.Invoke(func(
