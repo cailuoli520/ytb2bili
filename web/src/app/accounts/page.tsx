@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckCircle, XCircle, Link2, ExternalLink, AlertCircle, Loader2, Clock, Info, ShieldCheck, Unlink } from 'lucide-react';
@@ -75,13 +75,7 @@ export default function AccountsPage() {
   ]);
   const [isChecking, setIsChecking] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      checkAccountStatus();
-    }
-  }, [user]);
-
-  const checkAccountStatus = async () => {
+  const checkAccountStatus = useCallback(async () => {
     setIsChecking(true);
     try {
       // 这里调用后端API检查各平台账号绑定状态
@@ -118,7 +112,15 @@ export default function AccountsPage() {
     } finally {
       setIsChecking(false);
     }
-  };
+  }, []); // 空依赖数组，因为函数内部没有使用外部变量
+
+  useEffect(() => {
+    if (user) {
+      checkAccountStatus();
+    } else {
+      setIsChecking(false);
+    }
+  }, [user?.id, checkAccountStatus]); // 只依赖user.id而不是整个user对象
 
   const handleConnect = async (platform: string) => {
     try {
@@ -208,26 +210,27 @@ export default function AccountsPage() {
             <ShieldCheck className="h-5 w-5 text-green-600" />
             已绑定账号
           </h3>
-          {isChecking ? (
-            <div className="text-center py-12 bg-white rounded-lg border shadow-sm">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent text-gray-400 mb-2" />
-              <p className="text-gray-600 text-sm">加载中...</p>
-            </div>
-          ) : accounts.filter(a => a.connected).length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg border border-dashed shadow-sm">
-              <Link2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-600 mb-1">暂无绑定账号</p>
-              <p className="text-xs text-gray-400">请在下方选择平台进行绑定</p>
-            </div>
-          ) : (
+          <div className="min-h-[200px]">
+            {isChecking ? (
+              <div className="text-center py-12 bg-white rounded-lg border shadow-sm">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent text-gray-400 mb-2" />
+                <p className="text-gray-600 text-sm">加载中...</p>
+              </div>
+            ) : accounts.filter(a => a.connected).length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg border border-dashed shadow-sm">
+                <Link2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600 mb-1">暂无绑定账号</p>
+                <p className="text-xs text-gray-400">请在下方选择平台进行绑定</p>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {accounts.filter(a => a.connected).map((account) => (
-                <div key={account.platform} className="group relative bg-white rounded-xl border hover:border-blue-300 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
-                  {/* 顶部装饰条 */}
-                  <div className={`h-1.5 w-full ${account.color}`} />
-                  
-                  <div className="p-5">
-                    <div className="flex justify-between items-start mb-4">
+                  <div key={account.platform} className="group relative bg-white rounded-xl border hover:border-blue-300 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden min-h-[280px] flex flex-col">
+                    {/* 顶部装饰条 */}
+                    <div className={`h-1.5 w-full ${account.color} flex-shrink-0`} />
+                    
+                    <div className="p-5 flex-1 flex flex-col">
+                      <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-2">
                         <div className={`w-8 h-8 ${account.color} rounded-full flex items-center justify-center text-sm text-white shadow-sm`}>
                           {account.icon}
@@ -240,8 +243,8 @@ export default function AccountsPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center space-x-4 mb-6">
-                      <div className="relative">
+                    <div className="flex items-center space-x-4 mb-6 min-h-[56px]">
+                      <div className="relative w-14 h-14 flex-shrink-0">
                         {account.avatar ? (
                           <img
                             src={account.avatar}
@@ -286,7 +289,8 @@ export default function AccountsPage() {
                 </div>
               ))}
             </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* 可绑定平台列表 */}
