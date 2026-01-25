@@ -130,10 +130,10 @@ func (h *UploadHandler) uploadVideo(c *gin.Context) {
 
 	log.Printf("🎉 Upload completed successfully: filename=%s, title=%s", video.Filename, video.Title)
 
-	c.JSON(http.StatusOK, UploadVideoResponse{
-		Code:    0,
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
 		Message: "Upload successful (via COS optimization)",
-		Video:   video,
+		Data:    video,
 	})
 }
 
@@ -215,10 +215,12 @@ func (h *UploadHandler) uploadCover(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, UploadCoverResponse{
-		Code:     0,
-		Message:  "Cover upload successful",
-		CoverURL: coverURL,
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
+		Message: "Cover upload successful",
+		Data: gin.H{
+			"cover_url": coverURL,
+		},
 	})
 }
 
@@ -272,9 +274,9 @@ func (h *UploadHandler) submitVideo(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, SubmitVideoResponse{
-		Code:    0,
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
 		Message: "Submit successful",
-		Result:  result,
+		Data:    result,
 	})
 }

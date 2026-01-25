@@ -6,6 +6,74 @@ export interface User {
   isLoggedIn: boolean;
 }
 
+// Firebase 用户相关类型
+export interface FirebaseUser {
+  uid: string;
+  email: string;
+  display_name: string;
+  is_vip: boolean;
+  vip_tier: string;
+  vip_status?: VIPStatus;
+  power: number;
+}
+
+export interface VIPStatus {
+  is_vip: boolean;
+  tier: 'basic' | 'premium' | 'enterprise';
+  expire_time?: string;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  display_name: string;
+  vip_status?: VIPStatus;
+  power: number;
+  created_at: string;
+}
+
+// 订单相关类型
+export interface Order {
+  order_no: string;
+  status: OrderStatus;
+  amount: number;
+  user_id: string;
+  pay_way: string;
+  paid_at?: string;
+  created_at: string;
+}
+
+export type OrderStatus = 'pending' | 'paid' | 'failed' | 'cancelled';
+
+export interface CreateOrderRequest {
+  product_id: string;
+  pay_way: 'alipay' | 'wechat' | 'paypal' | 'mock';
+  pay_type: 'h5' | 'pc' | 'native';
+  return_url?: string;
+  callback_url?: string;
+  extra?: string;
+}
+
+export interface CreateOrderResponse {
+  order_no: string;
+  amount: number;
+  product: string;
+  created_at: string;
+}
+
+// VIP产品类型
+export interface VIPProduct {
+  id: string;
+  name: string;
+  tier: 'basic' | 'premium' | 'enterprise';
+  plan: 'monthly' | 'quarterly' | 'yearly' | 'lifetime';
+  price: number;
+  original_price?: number;
+  duration_days: number;
+  features: string[];
+  popular?: boolean;
+}
+
 export interface Video {
   id: number;
   video_id: string;
@@ -95,6 +163,7 @@ export interface QRCodeResponse {
 export interface LoginStatus {
   is_logged_in: boolean;
   user?: User;
+  firebase_user?: FirebaseUser;
   message?: string;
 }
 

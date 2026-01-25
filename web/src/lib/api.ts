@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { auth } from './firebase';
 import type { 
   ApiResponse, 
   Video, 
@@ -24,8 +25,17 @@ const api = axios.create({
 
 // 请求拦截器
 api.interceptors.request.use(
-  (config) => {
-    // 可以在这里添加 token 等认证信息
+  async (config) => {
+    // 添加Firebase UID到请求头（如果已登录）
+    try {
+      const currentUser = auth?.currentUser;
+      if (currentUser) {
+        config.headers['X-Firebase-UID'] = currentUser.uid;
+      }
+    } catch (error) {
+      console.error('Failed to get Firebase user:', error);
+    }
+    
     return config;
   },
   (error) => {

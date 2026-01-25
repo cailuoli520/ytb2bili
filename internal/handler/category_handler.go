@@ -54,10 +54,10 @@ func (h *CategoryHandler) getCategoryList(c *gin.Context) {
 	}
 
 	// 返回分区列表
-	c.JSON(http.StatusOK, gin.H{
-		"code":    0,
-		"message": "success",
-		"data": gin.H{
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
+		Message: "success",
+		Data: gin.H{
 			"typelist": archiveData.TypeList,
 		},
 	})

@@ -33,13 +33,18 @@ let auth: Auth;
 if (typeof window !== 'undefined') {
   // 避免重复初始化
   if (!getApps().length) {
+    console.log('Initializing Firebase app...');
     app = initializeApp(firebaseConfig);
   } else {
     app = getApps()[0];
   }
   
   auth = getAuth(app);
+  console.log('Firebase auth initialized:', !!auth);
+} else {
+  console.log('Firebase skipped: not in browser environment');
 }
 
+// @ts-ignore - 在服务器端可能未定义，但客户端组件会处理
 export { app, auth };
 export default firebaseConfig;

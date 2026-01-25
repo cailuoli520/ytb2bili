@@ -33,6 +33,7 @@ type AppConfig struct {
 	AnalyticsConfig     *AnalyticsConfig     `toml:"AnalyticsConfig"`     // 数据分析配置
 	BilibiliConfig      *BilibiliConfig      `toml:"BilibiliConfig"`      // Bilibili上传配置
 	WhisperConfig       *WhisperConfig       `toml:"WhisperConfig"`       // Whisper 语音识别配置
+	FirebaseConfig      *FirebaseConfig      `toml:"FirebaseConfig"`      // Firebase Backend配置
 }
 
 // BilibiliConfig Bilibili上传配置
@@ -201,6 +202,14 @@ type OpenAICompatibleConfig struct {
 	Timeout     int     `toml:"timeout"`     // 超时时间（秒）
 	MaxTokens   int     `toml:"max_tokens"`  // 最大token数
 	Temperature float64 `toml:"temperature"` // 温度参数（0-2）
+}
+
+// FirebaseConfig Firebase Backend配置
+type FirebaseConfig struct {
+	Enabled   bool   `toml:"enabled"`    // 是否启用Firebase认证
+	BaseURL   string `toml:"base_url"`   // Firebase Backend服务地址
+	AppID     string `toml:"app_id"`     // 应用ID
+	AppSecret string `toml:"app_secret"` // 应用密钥
 }
 
 // NewDefaultConfig 创建默认配置

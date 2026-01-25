@@ -6,6 +6,7 @@ import (
 	"github.com/difyz9/bilibili-go-sdk/bilibili"
 	"github.com/difyz9/ytb2bili/internal/core"
 	"github.com/difyz9/ytb2bili/internal/storage"
+	"github.com/difyz9/ytb2bili/pkg/firebase"
 	"image/color"
 	"image/png"
 	"log"
@@ -18,12 +19,25 @@ import (
 
 type AuthHandler struct {
 	BaseHandler
+	FirebaseClient *firebase.Client // Firebase Backend SDK客户端
 }
 
 func NewAuthHandler(app *core.AppServer) *AuthHandler {
-	return &AuthHandler{
+	handler := &AuthHandler{
 		BaseHandler: BaseHandler{App: app},
 	}
+	
+	// 初始化Firebase客户端（如果配置启用）
+	if app.Config.FirebaseConfig != nil && app.Config.FirebaseConfig.Enabled {
+		handler.FirebaseClient = firebase.NewClient(
+			app.Config.FirebaseConfig.BaseURL,
+			app.Config.FirebaseConfig.AppID,
+			app.Config.FirebaseConfig.AppSecret,
+		)
+		log.Printf("Firebase Backend client initialized: %s", app.Config.FirebaseConfig.BaseURL)
+	}
+	
+	return handler
 }
 
 // RegisterRoutes 注册认证相关路由
@@ -33,18 +47,12 @@ func (h *AuthHandler) RegisterRoutes(server *core.AppServer) {
 	auth := api.Group("/auth")
 	{
 		auth.GET("/qrcode", h.getQRCode)
-		auth.GET("/qrcode/", h.getQRCode) // 支持尾斜杠
 		auth.GET("/qrcode/image/:authCode", h.getQRCodeImage)
 		auth.POST("/poll", h.pollQRCode)
-		auth.POST("/poll/", h.pollQRCode) // 支持尾斜杠
 		auth.GET("/login", h.loadLoginInfo)
-		auth.GET("/login/", h.loadLoginInfo) // 支持尾斜杠
 		auth.GET("/status", h.checkLoginStatus)
-		auth.GET("/status/", h.checkLoginStatus) // 支持带尾斜杠的请求
 		auth.GET("/userinfo", h.getUserInfo)
-		auth.GET("/userinfo/", h.getUserInfo) // 支持尾斜杠
 		auth.POST("/logout", h.logout)
-		auth.POST("/logout/", h.logout) // 支持尾斜杠
 	}
 }
 
@@ -88,11 +96,13 @@ func (h *AuthHandler) getQRCode(c *gin.Context) {
 	host := c.Request.Host
 	fullQRCodeURL := fmt.Sprintf("%s://%s/api/v1/auth/qrcode/image/%s", scheme, host, qrResp.Data.AuthCode)
 
-	c.JSON(http.StatusOK, QRCodeResponse{
-		Code:      0,
-		Message:   "success",
-		QRCodeURL: fullQRCodeURL,
-		AuthCode:  qrResp.Data.AuthCode,
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
+		Message: "success",
+		Data: gin.H{
+			"qrcode_url": fullQRCodeURL,
+			"auth_code":  qrResp.Data.AuthCode,
+		},
 	})
 }
 
@@ -247,21 +257,31 @@ func (h *AuthHandler) loadLoginInfo(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, LoadLoginInfoResponse{
-		Code:      0,
-		Message:   "Login info loaded successfully",
-		LoginInfo: loginInfo,
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
+		Message: "Login info loaded successfully",
+		Data:    loginInfo,
 	})
 }
 
 // CheckLoginStatusResponse 检查登录状态响应
 type CheckLoginStatusResponse struct {
-	Code       int       `json:"code"`
-	Message    string    `json:"message"`
-	IsLoggedIn bool      `json:"is_logged_in"`
-	User       *UserInfo `json:"user,omitempty"`
+	Code              int               `json:"code"`
+	Message           string            `json:"message"`
+	IsLoggedIn        bool              `json:"is_logged_in"`         // 用户是否登录（Firebase登录）
+	BilibiliConnected bool              `json:"bilibili_connected"`   // B站账号是否已绑定
+	FirebaseUser      *FirebaseUserInfo `json:"firebase_user,omitempty"` // Firebase用户信息
+	BilibiliUser      *BilibiliUserInfo `json:"bilibili_user,omitempty"` // B站用户信息
 }
 
+// BilibiliUserInfo B站用户信息
+type BilibiliUserInfo struct {
+	Mid    string `json:"mid"`
+	Name   string `json:"name"`
+	Avatar string `json:"avatar"`
+}
+
+// 保持 UserInfo 用于向后兼容
 type UserInfo struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
@@ -269,28 +289,37 @@ type UserInfo struct {
 	Avatar string `json:"avatar"`
 }
 
-// checkLoginStatus 检查本地登录信息是否有效
+type FirebaseUserInfo struct {
+	UID         string                `json:"uid"`
+	Email       string                `json:"email"`
+	DisplayName string                `json:"display_name"`
+	IsVIP       bool                  `json:"is_vip"`
+	VIPTier     string                `json:"vip_tier"`
+	VIPStatus   *firebase.VIPStatus   `json:"vip_status,omitempty"`
+	Power       int                   `json:"power"`
+}
+
+// checkLoginStatus 检查登录状态（Firebase登录 + B站账号绑定）
 func (h *AuthHandler) checkLoginStatus(c *gin.Context) {
 	store := storage.GetDefaultStore()
-	isValid := store.IsValid()
+	bilibiliConnected := store.IsValid()
 
-	response := CheckLoginStatusResponse{
-		Code:       0,
-		Message:    "success",
-		IsLoggedIn: isValid,
+	// 默认响应数据
+	responseData := gin.H{
+		"is_logged_in":        false, // 默认未登录
+		"bilibili_connected": bilibiliConnected,
 	}
 
-	// 如果已登录，返回用户信息
-	if isValid {
-		// 优先从缓存中获取用户信息
+	// 检查B站账号绑定状态，如果已绑定则返回B站用户信息
+	if bilibiliConnected {
+		// 优先从缓存中获取B站用户信息
 		cachedUserInfo, err := store.GetUserInfo()
 		if err == nil && cachedUserInfo != nil {
-			// 使用缓存的用户信息
-			response.User = &UserInfo{
-				ID:     fmt.Sprintf("%d", cachedUserInfo.Mid),
-				Name:   cachedUserInfo.Name,
-				Mid:    fmt.Sprintf("%d", cachedUserInfo.Mid),
-				Avatar: cachedUserInfo.Face,
+			// 使用缓存的B站用户信息
+			responseData["bilibili_user"] = gin.H{
+				"mid":    fmt.Sprintf("%d", cachedUserInfo.Mid),
+				"name":   cachedUserInfo.Name,
+				"avatar": cachedUserInfo.Face,
 			}
 		} else {
 			// 没有缓存的用户信息，从API获取
@@ -340,17 +369,63 @@ func (h *AuthHandler) checkLoginStatus(c *gin.Context) {
 					store.Save(loginInfo)
 				}
 
-				response.User = &UserInfo{
-					ID:     userMid,
-					Name:   userName,
-					Mid:    userMid,
-					Avatar: userAvatar,
+				responseData["bilibili_user"] = gin.H{
+					"mid":    userMid,
+					"name":   userName,
+					"avatar": userAvatar,
 				}
 			}
 		}
 	}
+	
+	// 检查Firebase用户登录状态
+	if h.FirebaseClient != nil {
+		// 从请求头或参数中获取Firebase UID
+		firebaseUID := c.GetHeader("X-Firebase-UID")
+		if firebaseUID == "" {
+			firebaseUID = c.Query("firebase_uid")
+		}
+		if firebaseUID == "" {
+			// 尝试从cookie获取
+			cookie, err := c.Cookie("firebase_uid")
+			if err == nil {
+				firebaseUID = cookie
+			}
+		}
+		
+		if firebaseUID != "" {
+			// 获取Firebase用户信息
+			profile, err := h.FirebaseClient.GetUserProfile(firebaseUID)
+			if err == nil && profile != nil {
+				// 用户已通过Firebase登录
+				responseData["is_logged_in"] = true
+				
+				firebaseUser := gin.H{
+					"uid":          profile.UID,
+					"email":        profile.Email,
+					"display_name": profile.DisplayName,
+					"power":        profile.Power,
+				}
+				
+				// 获取VIP状态
+				if profile.VIPStatus != nil {
+					firebaseUser["is_vip"] = profile.VIPStatus.IsVIP
+					firebaseUser["vip_tier"] = profile.VIPStatus.Tier
+					firebaseUser["vip_status"] = profile.VIPStatus
+				}
+				
+				responseData["firebase_user"] = firebaseUser
+			} else {
+				log.Printf("Warning: Failed to get Firebase user profile: %v", err)
+			}
+		}
+	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
+		Message: "success",
+		Data:    responseData,
+	})
 }
 
 // GetUserInfoResponse 获取用户信息响应

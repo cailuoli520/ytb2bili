@@ -173,6 +173,12 @@ func main() {
 			logger.Info("✓ Auth routes registered")
 		}),
 
+		fx.Provide(handler.NewFirebaseHandler),
+		fx.Invoke(func(h *handler.FirebaseHandler, server *core.AppServer, logger *zap.SugaredLogger) {
+			h.RegisterRoutes(server)
+			logger.Info("✓ Firebase routes registered")
+		}),
+
 		fx.Provide(handler.NewUploadHandler),
 		fx.Invoke(func(h *handler.UploadHandler, server *core.AppServer, logger *zap.SugaredLogger) {
 			h.RegisterRoutes(server)

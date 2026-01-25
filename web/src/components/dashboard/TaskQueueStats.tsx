@@ -56,11 +56,17 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
       console.log('视频数据响应:', data); // 调试日志
       
       if ((data.code === 0 || data.code === 200) && data.data) {
-        setVideos(data.data.videos || []);
-        console.log('成功加载视频:', data.data.videos.length); // 调试日志
+        const videos = data.data.videos || [];
+        setVideos(videos);
+        console.log('成功加载视频:', videos.length); // 调试日志
+      } else {
+        // 如果没有数据，设置为空数组
+        setVideos([]);
+        console.log('没有视频数据，设置为空数组');
       }
     } catch (error) {
       console.error('获取视频列表失败:', error);
+      setVideos([]); // 出错时也设置为空数组
     } finally {
       setLoading(false);
       setRefreshing(false);
