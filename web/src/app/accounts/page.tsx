@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import AppLayout from '@/components/layout/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { getApiBaseUrl, apiFetch } from '@/lib/api';
 import { CheckCircle, XCircle, Link2, ExternalLink, AlertCircle, Loader2, Clock, Info, ShieldCheck, Unlink, Star } from 'lucide-react';
@@ -217,23 +216,8 @@ export default function AccountsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
   return (
-    <AppLayout user={user} onLogout={handleLogout}>
+    <>
       <div className="max-w-6xl mx-auto space-y-6">
         {/* 页面标题 */}
         <div>
@@ -499,6 +483,6 @@ export default function AccountsPage() {
           userId={user.uid}
         />
       )}
-    </AppLayout>
+    </>
   );
 }

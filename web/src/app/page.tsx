@@ -1,15 +1,10 @@
 "use client";
 
-import AppLayout from '@/components/layout/AppLayout';
-import FirebaseLogin from '@/components/auth/FirebaseLogin';
-import { useAuth } from '@/hooks/useAuth';
 import { getApiBaseUrl, apiFetch } from '@/lib/api';
 import { Plus, Youtube, Video, Globe, AlertCircle, CheckCircle, Upload, File } from 'lucide-react';
 import { useState, useRef } from 'react';
 
 export default function HomePage() {
-  const { user, loading, handleLoginSuccess, handleRefreshStatus, handleLogout } = useAuth();
-  
   // Segment 控制状态
   const [activeTab, setActiveTab] = useState<'url' | 'upload'>('url');
   
@@ -183,45 +178,7 @@ export default function HomePage() {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="container mx-auto px-4 py-12">
-          <div className="max-w-md mx-auto">
-            <div className="text-center mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                YTB2BILI Web
-              </h1>
-              <p className="text-gray-600">
-                多平台视频下载与管理平台
-              </p>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-lg">
-              <FirebaseLogin 
-                onLoginSuccess={handleLoginSuccess}
-                onRefreshStatus={handleRefreshStatus}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <AppLayout user={user} onLogout={handleLogout}>
       <div className="max-w-5xl mx-auto space-y-8">
         {/* 主要功能区域 - Segment 切换面板 */}
         <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-xl overflow-hidden border border-blue-100/50">
@@ -564,6 +521,5 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-    </AppLayout>
   );
 }
