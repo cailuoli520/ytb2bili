@@ -254,10 +254,12 @@ func (t *UploadToBilibili) Execute(context map[string]interface{}) bool {
 			}
 		}
 
+		// 更新视频状态为 300 (已上传)
+		savedVideo.Status = "300"
 		if err := t.SavedVideoService.UpdateVideo(savedVideo); err != nil {
 			t.App.Logger.Errorf("❌ 保存上传结果到数据库失败: %v", err)
 		} else {
-			t.App.Logger.Info("✅ 上传结果已保存到数据库")
+			t.App.Logger.Info("✅ 上传结果已保存到数据库，状态已更新为 300")
 		}
 	}
 

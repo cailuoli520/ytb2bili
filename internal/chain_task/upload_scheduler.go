@@ -248,6 +248,18 @@ func (s *UploadScheduler) executeUploadTask(videoID, taskName string) error {
 		if err := s.TaskStepService.UpdateTaskStepResult(videoID, taskName, result); err != nil {
 			s.logger.Errorf("更新任务步骤结果失败: %v", err)
 		}
+		
+		// 如果是上传视频任务且成功，更新主状态为 "300" (已上传)
+		if taskName == "上传到Bilibili" {
+			if video, err := s.SavedVideoService.GetVideoByVideoID(videoID); err == nil {
+				if err := s.SavedVideoService.UpdateStatus(video.ID, "300"); err != nil {
+					s.logger.Errorf("更新视频主状态失败: %v", err)
+				} else {
+					s.logger.Infof("视频主状态已更新为 300 (已上传)")
+				}
+			}
+		}
+
 		s.logger.Infof("任务 %s 执行成功", taskName)
 		return nil
 	} else {
