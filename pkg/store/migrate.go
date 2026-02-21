@@ -1,6 +1,7 @@
 package store
 
 import (
+	"github.com/difyz9/ytb2bili/internal/core/models"
 	"github.com/difyz9/ytb2bili/pkg/store/model"
 	"gorm.io/gorm"
 )
@@ -12,5 +13,6 @@ func MigrateDatabase(db *gorm.DB) error {
 		&model.SavedVideo{},
 		&model.TaskStep{},
 		&model.AccountBinding{},
+		&models.TBUser{}, // 管理员用户表
 	)
 }

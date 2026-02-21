@@ -6,32 +6,6 @@ export interface User {
   isLoggedIn: boolean;
 }
 
-// Firebase 用户相关类型
-export interface FirebaseUser {
-  uid: string;
-  email: string;
-  display_name: string;
-  is_vip: boolean;
-  vip_tier: string;
-  vip_status?: VIPStatus;
-  power: number;
-}
-
-export interface VIPStatus {
-  is_vip: boolean;
-  tier: 'basic' | 'premium' | 'enterprise';
-  expire_time?: string;
-}
-
-export interface UserProfile {
-  uid: string;
-  email: string;
-  display_name: string;
-  vip_status?: VIPStatus;
-  power: number;
-  created_at: string;
-}
-
 // 订单相关类型
 export interface Order {
   order_no: string;
@@ -163,7 +137,6 @@ export interface QRCodeResponse {
 export interface LoginStatus {
   is_logged_in: boolean;
   user?: User;
-  firebase_user?: FirebaseUser;
   message?: string;
 }
 

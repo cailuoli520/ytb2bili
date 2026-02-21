@@ -18,7 +18,7 @@ export default function ExtensionPage() {
   const handleDownloadExtension = async () => {
     setIsDownloading(true);
     try {
-      const response = await fetch('https://api.github.com/repos/difyz9/bili-up-extension/releases/latest');
+      const response = await fetch('https://api.github.com/repos/difyz9/ytb2bili_extension/releases/latest');
       const release = await response.json();
       
       if (release.assets && release.assets.length > 0) {
@@ -31,14 +31,14 @@ export default function ExtensionPage() {
           link.click();
           document.body.removeChild(link);
         } else {
-          window.open('https://github.com/difyz9/bili-up-extension/releases/latest', '_blank');
+          window.open('https://github.com/difyz9/ytb2bili_extension/releases/latest', '_blank');
         }
       } else {
-        window.open('https://github.com/difyz9/bili-up-extension/releases/latest', '_blank');
+        window.open('https://github.com/difyz9/ytb2bili_extension/releases/latest', '_blank');
       }
     } catch (error) {
       console.error('下载失败:', error);
-      window.open('https://github.com/difyz9/bili-up-extension/releases/latest', '_blank');
+      window.open('https://github.com/difyz9/ytb2bili_extension/releases/latest', '_blank');
     } finally {
       setIsDownloading(false);
     }
@@ -78,7 +78,7 @@ export default function ExtensionPage() {
                   )}
                 </button>
                 <a
-                  href="https://github.com/difyz9/bili-up-extension"
+                  href="https://github.com/difyz9/ytb2bili_extension"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center px-6 py-2 border border-purple-300 text-purple-700 rounded-md hover:bg-purple-50 transition-colors"

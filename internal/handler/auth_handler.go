@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"github.com/difyz9/bilibili-go-sdk/bilibili"
 	"github.com/difyz9/ytb2bili/internal/core"
+	"github.com/difyz9/ytb2bili/internal/core/models"
 	"github.com/difyz9/ytb2bili/internal/storage"
-	"github.com/difyz9/ytb2bili/pkg/firebase"
+	"github.com/difyz9/ytb2bili/pkg/auth"
+	"github.com/google/uuid"
 	"image/color"
 	"image/png"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/skip2/go-qrcode"
@@ -19,22 +22,20 @@ import (
 
 type AuthHandler struct {
 	BaseHandler
-	FirebaseClient *firebase.Client // Firebase Backend SDK客户端
+	JWTManager *auth.JWTManager
 }
 
 func NewAuthHandler(app *core.AppServer) *AuthHandler {
+	// 初始化 JWT 管理器
+	jwtConfig := &auth.JWTConfig{
+		SecretKey:   app.Config.Auth.JWTSecret,
+		ExpiryTime:  time.Duration(app.Config.Auth.JWTExpiration) * time.Hour,
+		RefreshTime: 30 * 24 * time.Hour,
+	}
+
 	handler := &AuthHandler{
 		BaseHandler: BaseHandler{App: app},
-	}
-	
-	// 初始化Firebase客户端（如果配置启用）
-	if app.Config.FirebaseConfig != nil && app.Config.FirebaseConfig.Enabled {
-		handler.FirebaseClient = firebase.NewClient(
-			app.Config.FirebaseConfig.BaseURL,
-			app.Config.FirebaseConfig.AppID,
-			app.Config.FirebaseConfig.AppSecret,
-		)
-		log.Printf("Firebase Backend client initialized: %s", app.Config.FirebaseConfig.BaseURL)
+		JWTManager:  auth.NewJWTManager(jwtConfig),
 	}
 	
 	return handler
@@ -46,6 +47,12 @@ func (h *AuthHandler) RegisterRoutes(server *core.AppServer) {
 
 	auth := api.Group("/auth")
 	{
+		// 管理员登录
+		auth.POST("/admin/login", h.adminLogin)
+		auth.POST("/admin/logout", h.adminLogout)
+		auth.GET("/admin/validate", h.validateToken)
+		
+		// B站账号二维码登录
 		auth.GET("/qrcode", h.getQRCode)
 		auth.GET("/qrcode/image/:authCode", h.getQRCodeImage)
 		auth.POST("/poll", h.pollQRCode)
@@ -54,6 +61,177 @@ func (h *AuthHandler) RegisterRoutes(server *core.AppServer) {
 		auth.GET("/userinfo", h.getUserInfo)
 		auth.POST("/logout", h.logout)
 	}
+}
+
+// AdminLoginRequest 管理员登录请求
+type AdminLoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// AdminLoginResponse 管理员登录响应
+type AdminLoginResponse struct {
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+	User      gin.H     `json:"user"`
+}
+
+// adminLogin 管理员登录
+func (h *AuthHandler) adminLogin(c *gin.Context) {
+	var req AdminLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "Invalid request parameters: " + err.Error(),
+		})
+		return
+	}
+
+	// 确保管理员用户存在
+	adminUser, err := h.ensureAdminUser()
+	if err != nil {
+		log.Printf("Failed to ensure admin user: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "Internal server error",
+		})
+		return
+	}
+
+	// 验证用户名
+	if req.Username != adminUser.Username {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "Invalid username or password",
+		})
+		return
+	}
+
+	// 验证密码
+	if err := adminUser.CheckPassword(req.Password); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "Invalid username or password",
+		})
+		return
+	}
+
+	// 生成 JWT token
+	token, err := h.JWTManager.GenerateToken(adminUser.Id, adminUser.Email, adminUser.Username)
+	if err != nil {
+		log.Printf("Failed to generate token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "Failed to generate token",
+		})
+		return
+	}
+
+	// 计算过期时间
+	expiresAt := time.Now().Add(time.Duration(h.App.Config.Auth.JWTExpiration) * time.Hour)
+
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
+		Message: "Login successful",
+		Data: AdminLoginResponse{
+			Token:     token,
+			ExpiresAt: expiresAt,
+			User: gin.H{
+				"id":       adminUser.Id,
+				"username": adminUser.Username,
+				"email":    adminUser.Email,
+				"nickname": adminUser.NickName,
+			},
+		},
+	})
+}
+
+// adminLogout 管理员登出
+func (h *AuthHandler) adminLogout(c *gin.Context) {
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
+		Message: "Logout successful",
+	})
+}
+
+// validateToken 验证 token
+func (h *AuthHandler) validateToken(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "Authorization header required",
+		})
+		return
+	}
+
+	// 提取 token
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == authHeader {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "Invalid authorization format",
+		})
+		return
+	}
+
+	// 验证 token
+	claims, err := h.JWTManager.ValidateToken(tokenString)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "Invalid or expired token",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
+		Message: "Token is valid",
+		Data: gin.H{
+			"user_id":  claims.UserID,
+			"username": claims.Username,
+			"email":    claims.Email,
+		},
+	})
+}
+
+// ensureAdminUser 确保管理员用户存在，如果不存在则创建
+func (h *AuthHandler) ensureAdminUser() (*models.TBUser, error) {
+	db := h.App.DB
+
+	// 查找管理员用户
+	var adminUser models.TBUser
+	result := db.Where("user_name = ?", "admin").First(&adminUser)
+
+	if result.Error == nil {
+		// 用户已存在
+		return &adminUser, nil
+	}
+
+	// 用户不存在，创建默认管理员用户
+	adminUser = models.TBUser{
+		Id:         uuid.New().String(),
+		Username:   "admin",
+		Email:      "admin@ytb2bili.local",
+		NickName:   "Administrator",
+		Status:     "active",
+		CreateTime: time.Now(),
+		UpdateTime: time.Now(),
+	}
+
+	// 设置默认密码: admin123
+	if err := adminUser.HashPassword("admin123"); err != nil {
+		return nil, err
+	}
+
+	// 保存到数据库
+	if err := db.Create(&adminUser).Error; err != nil {
+		return nil, err
+	}
+
+	log.Printf("✓ Default admin user created (username: admin, password: admin123)")
+	return &adminUser, nil
 }
 
 // QRCodeRequest 二维码请求
@@ -268,9 +446,8 @@ func (h *AuthHandler) loadLoginInfo(c *gin.Context) {
 type CheckLoginStatusResponse struct {
 	Code              int               `json:"code"`
 	Message           string            `json:"message"`
-	IsLoggedIn        bool              `json:"is_logged_in"`         // 用户是否登录（Firebase登录）
-	BilibiliConnected bool              `json:"bilibili_connected"`   // B站账号是否已绑定
-	FirebaseUser      *FirebaseUserInfo `json:"firebase_user,omitempty"` // Firebase用户信息
+	IsLoggedIn        bool              `json:"is_logged_in"`           // 用户是否登录
+	BilibiliConnected bool              `json:"bilibili_connected"`     // B站账号是否已绑定
 	BilibiliUser      *BilibiliUserInfo `json:"bilibili_user,omitempty"` // B站用户信息
 }
 
@@ -281,7 +458,7 @@ type BilibiliUserInfo struct {
 	Avatar string `json:"avatar"`
 }
 
-// 保持 UserInfo 用于向后兼容
+// UserInfo B站用户信息
 type UserInfo struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
@@ -289,24 +466,14 @@ type UserInfo struct {
 	Avatar string `json:"avatar"`
 }
 
-type FirebaseUserInfo struct {
-	UID         string                `json:"uid"`
-	Email       string                `json:"email"`
-	DisplayName string                `json:"display_name"`
-	IsVIP       bool                  `json:"is_vip"`
-	VIPTier     string                `json:"vip_tier"`
-	VIPStatus   *firebase.VIPStatus   `json:"vip_status,omitempty"`
-	Power       int                   `json:"power"`
-}
-
-// checkLoginStatus 检查登录状态（Firebase登录 + B站账号绑定）
+// checkLoginStatus 检查B站账号登录状态
 func (h *AuthHandler) checkLoginStatus(c *gin.Context) {
 	store := storage.GetDefaultStore()
 	bilibiliConnected := store.IsValid()
 
-	// 默认响应数据
+	// 响应数据
 	responseData := gin.H{
-		"is_logged_in":        false, // 默认未登录
+		"is_logged_in":        bilibiliConnected,
 		"bilibili_connected": bilibiliConnected,
 	}
 
@@ -330,7 +497,7 @@ func (h *AuthHandler) checkLoginStatus(c *gin.Context) {
 				// 构建cookie字符串
 				cookies := buildCookieString(loginInfo.CookieInfo)
 
-				// 尝试使用myinfo API获取完整用户信息 (参考biliup-1.1.16)
+				// 尝试使用myinfo API获取完整用户信息
 				userName := fmt.Sprintf("用户_%d", loginInfo.TokenInfo.Mid) // 默认用户名
 				userAvatar := ""
 				userMid := fmt.Sprintf("%d", loginInfo.TokenInfo.Mid)
@@ -362,7 +529,9 @@ func (h *AuthHandler) checkLoginStatus(c *gin.Context) {
 					userBasicInfo = storage.ConvertMyInfoToUserInfo(myInfo)
 				} else {
 					log.Printf("Warning: Failed to get myinfo: %v", err)
-				} // 保存更新后的信息（包括用户信息）
+				}
+				
+				// 保存更新后的信息（包括用户信息）
 				if userBasicInfo != nil {
 					store.SaveWithUserInfo(loginInfo, userBasicInfo)
 				} else {
@@ -374,49 +543,6 @@ func (h *AuthHandler) checkLoginStatus(c *gin.Context) {
 					"name":   userName,
 					"avatar": userAvatar,
 				}
-			}
-		}
-	}
-	
-	// 检查Firebase用户登录状态
-	if h.FirebaseClient != nil {
-		// 从请求头或参数中获取Firebase UID
-		firebaseUID := c.GetHeader("X-Firebase-UID")
-		if firebaseUID == "" {
-			firebaseUID = c.Query("firebase_uid")
-		}
-		if firebaseUID == "" {
-			// 尝试从cookie获取
-			cookie, err := c.Cookie("firebase_uid")
-			if err == nil {
-				firebaseUID = cookie
-			}
-		}
-		
-		if firebaseUID != "" {
-			// 获取Firebase用户信息
-			profile, err := h.FirebaseClient.GetUserProfile(firebaseUID)
-			if err == nil && profile != nil {
-				// 用户已通过Firebase登录
-				responseData["is_logged_in"] = true
-				
-				firebaseUser := gin.H{
-					"uid":          profile.UID,
-					"email":        profile.Email,
-					"display_name": profile.DisplayName,
-					"power":        profile.Power,
-				}
-				
-				// 获取VIP状态
-				if profile.VIPStatus != nil {
-					firebaseUser["is_vip"] = profile.VIPStatus.IsVIP
-					firebaseUser["vip_tier"] = profile.VIPStatus.Tier
-					firebaseUser["vip_status"] = profile.VIPStatus
-				}
-				
-				responseData["firebase_user"] = firebaseUser
-			} else {
-				log.Printf("Warning: Failed to get Firebase user profile: %v", err)
 			}
 		}
 	}

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { auth } from './firebase';
 import type { 
   ApiResponse, 
   Video, 
@@ -50,14 +49,14 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   async (config) => {
-    // 添加Firebase UID到请求头（如果已登录）
+    // 添加管理员 token 到请求头（如果已登录）
     try {
-      const currentUser = auth?.currentUser;
-      if (currentUser) {
-        config.headers['X-Firebase-UID'] = currentUser.uid;
+      const token = localStorage.getItem('admin_token');
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
       }
     } catch (error) {
-      console.error('Failed to get Firebase user:', error);
+      console.error('Failed to get admin token:', error);
     }
     
     return config;

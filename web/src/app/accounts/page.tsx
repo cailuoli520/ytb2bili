@@ -94,12 +94,12 @@ export default function AccountsPage() {
   const [isChecking, setIsChecking] = useState(true);
 
   const checkAccountStatus = useCallback(async () => {
-    if (!user?.uid) return;
+    if (!user?.id) return;
     
     setIsChecking(true);
     try {
       // 使用新的 API: /api/v1/accounts/list
-      const response = await apiFetch(`/accounts/list?user_id=${user.uid}`, {
+      const response = await apiFetch(`/accounts/list?user_id=${user.id}`, {
         method: 'GET',
       });
 
@@ -137,15 +137,15 @@ export default function AccountsPage() {
     } finally {
       setIsChecking(false);
     }
-  }, [user?.uid]);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (user?.uid) {
+    if (user?.id) {
       checkAccountStatus();
     } else {
       setIsChecking(false);
     }
-  }, [user?.uid, checkAccountStatus]);
+  }, [user?.id, checkAccountStatus]);
 
   const handleConnect = async (platform: string, platformName: string) => {
     if (platform === 'bilibili') {
@@ -470,7 +470,7 @@ export default function AccountsPage() {
       </div>
 
       {/* 绑定对话框 */}
-      {showBindingDialog && selectedPlatform && user?.uid && (
+      {showBindingDialog && selectedPlatform && user?.id && (
         <BindingDialog
           isOpen={showBindingDialog}
           onClose={() => {
@@ -480,7 +480,7 @@ export default function AccountsPage() {
           onSuccess={handleBindingSuccess}
           platform={selectedPlatform.key}
           platformName={selectedPlatform.name}
-          userId={user.uid}
+          userId={user.id}
         />
       )}
     </>

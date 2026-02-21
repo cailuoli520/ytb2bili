@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import AuthProvider from "@/components/auth/AuthProvider";
 import RootLayoutClient from "@/components/layout/RootLayoutClient";
 
 export const metadata: Metadata = {
@@ -16,11 +15,9 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="min-h-screen bg-gray-50">
-        <AuthProvider>
-          <RootLayoutClient>
-            {children}
-          </RootLayoutClient>
-        </AuthProvider>
+        <RootLayoutClient>
+          {children}
+        </RootLayoutClient>
       </body>
     </html>
   );
