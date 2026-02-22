@@ -22,10 +22,6 @@ yt_dlp_path = ""
   jwt_expiration = 24
   session_secret = "your-session-secret"
 
-[api_auth]
-  app_id = "ytb2bili_extension"                      # 应用ID
-  app_secret = "334567890-3456789045678"  # 应用密钥
-  cookies_decrypt_key = "234567804567893456789456789"  # Cookies 解密密钥
 
 [TenCosConfig]
   Enabled = false

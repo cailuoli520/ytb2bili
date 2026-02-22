@@ -54,10 +54,10 @@ export default function ExtensionPage() {
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Bili-Up 浏览器插件
+                YTB2BILI 浏览器插件
               </h2>
               <p className="text-gray-600 mb-4">
-                通过安装我们的浏览器插件，您可以更方便地使用 Bili-Up 平台的各项功能。
+                通过安装我们的浏览器插件，您可以更方便地使用 YTB2BILI 平台的各项功能。
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
@@ -126,7 +126,7 @@ export default function ExtensionPage() {
                 <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                 <div>
                   <h4 className="text-sm font-medium text-gray-900">同步管理</h4>
-                  <p className="text-sm text-gray-600">与 Bili-Up Web 平台实时同步数据</p>
+                  <p className="text-sm text-gray-600">与 YTB2BILI Web 平台实时同步数据</p>
                 </div>
               </div>
             </div>

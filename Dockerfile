@@ -49,8 +49,8 @@ COPY --from=backend-builder /app/ytb2bili-server .
 COPY --from=backend-builder /app/config.toml.example ./config.toml
 
 # 创建必要的目录
-RUN mkdir -p /data/ytb2bili /app/logs && \
-    chown -R ytb2bili:ytb2bili /app /data/ytb2bili
+RUN mkdir -p /data/ytb2bili /app/logs /home/ytb2bili/.bili_up && \
+    chown -R ytb2bili:ytb2bili /app /data/ytb2bili /home/ytb2bili
 
 # 切换到非特权用户
 USER ytb2bili

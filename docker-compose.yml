@@ -15,6 +15,7 @@ services:
       - ./config.toml:/app/config.toml:ro
       - ytb2bili_data:/data/ytb2bili
       - ytb2bili_logs:/app/logs
+      - bili_login_data:/home/ytb2bili/.bili_up
     depends_on:
       - mysql
     restart: unless-stopped
@@ -71,6 +72,8 @@ volumes:
   ytb2bili_data:
     driver: local
   ytb2bili_logs:
+    driver: local
+  bili_login_data:
     driver: local
   mysql_data:
     driver: local
