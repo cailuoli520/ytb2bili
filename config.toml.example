@@ -1,92 +1,145 @@
-# Bilibili 视频上传后端 - 配置文件
+# ytb2bili 配置文件示例（TOML格式）
+# 复制此文件为 config.toml 并根据实际情况修改
+# 注意：环境变量会覆盖此文件中的配置
 
-listen = ":8096"
-environment = "development"
-debug = true
-fileUpDir = "./media"
-data_path = "./data"
-yt_dlp_path = ""
+# ============================================================================
+# 应用基础配置
+# ============================================================================
 
+[server]
+host = "0.0.0.0"           # 服务监听地址，0.0.0.0 表示监听所有网卡
+port = 5688                # 服务端口
+static_dir = "./downloads" # 静态文件目录（视频、字幕等）
+static_path = "/static"    # 静态文件访问路径前缀
+
+
+# ============================================================================
+# 数据库配置
+# ============================================================================
 [database]
-  type = "mysql"
-  host = "localhost"
-  port = 3306
-  username = "root"
-  password = "your_password"
-  database = "bili_up"
-  ssl_mode = ""
-  timezone = "Asia/Shanghai"
+type = "sqlite"             # 数据库类型: sqlite, mysql, postgresql
+path = "ytb2bili.db"        # SQLite 数据库文件路径
+auto_migrate = true         # 是否自动迁移数据库表结构
+table_prefix = ""           # 表名前缀（可选）
 
-[auth]
-  jwt_secret = "your-jwt-secret-key"
-  jwt_expiration = 24
-  session_secret = "your-session-secret"
+# MySQL 配置示例（取消注释并修改以使用 MySQL）
+# type = "mysql"
+# host = "127.0.0.1"
+# port = 3306
+# user = "root"
+# password = "your_password"
+# dbname = "ytb2ibili"
+# timezone = "Asia/Shanghai"
+
+# PostgreSQL 配置示例（取消注释并修改以使用 PostgreSQL）
+# type = "postgresql"
+# host = "127.0.0.1"
+# port = 5432
+# user = "postgres"
+# password = "your_password"
+# dbname = "ytb2bili"
+# sslmode = "disable"
+# timezone = "UTC"
+
+# ============================================================================
+# 视频处理工作流配置
+# ============================================================================
+[workflow]
+download_dir = "./downloads"  # 视频下载目录（必需，应与 server.static_dir 保持一致）
+
+# yt-dlp 可执行文件路径（可选，默认从 PATH 查找）
+ytdlp_path = "/usr/local/bin/yt-dlp"
+
+# ffmpeg 可执行文件路径（可选，默认从 PATH 查找）
+ffmpeg_path = "/usr/local/bin/ffmpeg"
 
 
-[TenCosConfig]
-  Enabled = false
-  CosBucketURL = ""
-  CosSecretId = ""
-  CosSecretKey = ""
-  CosRegion = ""
-  CosBucket = ""
-  SubAppId = ""
-  CosUrL = ""
+# 代理地址（可选，用于加速下载）
+# proxy_url = "http://127.0.0.1:7890"
 
-[DeepSeekTransConfig]
-  enabled = true
-  api_key = "sk-deepseek_api_key"
-  models = ""
-  endpoint = "https://api.deepseek.com"
-  timeout = 60
-  max_tokens = 4000
+# 微软语音服务配置（可选，用于旧版翻译功能）
+# speech_key = "your_azure_speech_key"
+# speech_region = "eastasia"
 
-[GeminiConfig]
-  enabled = false                  # 是否启用Gemini服务
-  api_key = ""                     # Google AI API密钥（从 https://aistudio.google.com/app/apikey 获取）
-  model = "gemini-2.5-flash"       # 使用的模型（gemini-2.5-flash 快速, gemini-2.5-pro 强大）
-  timeout = 120                    # 超时时间（秒）
-  max_tokens = 8000                # 最大输出token数
-  use_for_metadata = false         # 是否使用Gemini生成元数据（优先于DeepSeek）
-  analyze_video = true             # 是否分析视频文件（true=多模态分析，false=仅文本）
-  video_sample_frames = 0          # 视频采样帧数（0=上传完整视频）
+# LLM 翻译配置
+llm_translation_enabled = false      # 是否启用 LLM 批量翻译（推荐，替代微软翻译）
+llm_translation_batch_size = 25      # 批量翻译每批句子数
+llm_translation_max_workers = 3      # 并发工作者数量
+llm_translation_context_size = 2     # 上下文窗口大小
+llm_translation_source_lang = "en"   # 源语言代码
+llm_translation_target_lang = "zh-Hans"  # 目标语言代码
 
-[ProxyConfig]
-  use_proxy = false
-  proxy_host = "http://127.0.0.1:7890"
+# TTS 字幕音频合成配置
+tts_enabled = false  # 是否启用字幕音频合成
 
-[AnalyticsConfig]
-  enabled = false
-  server_url = "http://localhost:8080"
-  api_key = ""
-  product_id = "bili-up-api"
-  debug = false
-  encryption_key = ""
+# ============================================================================
+# Agent & LLM 配置
+# ============================================================================
+[agent]
+name = "ytb2bili_agent"  # Agent 名称
 
-[BilibiliConfig]
-  copyright = 2                # 1=自制, 2=转载
-  source = "YouTube"           # 转载来源
-  no_reprint = 1               # 0=允许转载, 1=禁止转载
-  use_original_title = true     # true=使用原视频标题, false=使用AI生成标题
-  use_original_desc = false     # true=使用原视频描述, false=使用AI生成描述
-  custom_title_template = ""    # 自定义标题模板（可选），支持变量: {original_title}, {ai_title}
-                                # 示例: "{original_title}【中文字幕】" 或 "【原神MMD】{ai_title}"
-  custom_desc_template = ""     # 自定义描述模板（可选），支持变量: {original_desc}, {ai_desc}
-  
-  # 新增配置项
-  tid = 122                    # 分区ID（122=日常，138=搞笑，详见B站分区列表）
-  dynamic = "发布了新视频！"      # 动态文本
-  open_elec = 0                # 是否开启充电面板 0=关闭, 1=开启
-  selection_reserve = 0        # 参与活动ID（0表示不参与，暂不被SDK支持）
-  up_selection_reply = 0       # 是否展示推荐评论 0=关闭, 1=开启（暂不被SDK支持）
-  up_close_reply = 0           # 是否关闭评论 0=开启评论, 1=关闭评论（暂不被SDK支持）
-  up_close_reward = 0          # 是否关闭打赏 0=开启, 1=关闭（暂不被SDK支持）
+[agent.llm]
+provider = "openai"                      # LLM 提供商: openai, deepseek, openrouter 等
+api_key = "your_api_key_here"            # LLM API 密钥（必需）
+model = "gpt-4"                          # 使用的模型名称
+# base_url = "https://api.openai.com/v1"  # 自定义 API 地址（可选）
 
-  # 自定义描述模板示例：
-  # custom_desc_template = """
-  # 【视频内容】
-  # {ai_desc}
-  # 
-  # 【原视频描述】
-  # {original_desc}
-  # """
+# OpenRouter 示例
+# provider = "openrouter"
+# api_key = "sk-or-v1-..."
+# base_url = "https://openrouter.ai/api/v1"
+# model = "anthropic/claude-3-sonnet"
+
+# DeepSeek 示例
+# provider = "deepseek"
+# api_key = "sk-..."
+# base_url = "https://api.deepseek.com/v1"
+# model = "deepseek-chat"
+
+# ============================================================================
+# Firebase 配置（可选，用于用户认证）
+# ============================================================================
+[firebase]
+enabled = false  # 是否启用 Firebase 认证
+# credentials_path = "/path/to/firebase-credentials.json"
+# project_id = "your-project-id"
+
+# ============================================================================
+# TikHub API 配置（可选，用于抖音相关功能）
+# ============================================================================
+[tikhub]
+# api_key = "your_tikhub_api_key"
+# base_url = "https://api.tikhub.io"
+
+
+
+
+# ============================================================================
+# 自动更新配置
+# ============================================================================
+[updater]
+enabled = true         # 是否启用更新检查
+auto_update = false    # 是否自动更新（建议设为 false，手动更新更安全）
+check_interval = 24    # 检查更新间隔（小时），0 表示禁用
+# update_url = "https://api.github.com/repos/zolagz/ytb2bili/releases/latest"
+# current_version = "0.0.1"
+
+# ============================================================================
+# TTS 服务配置（可选，用于语音合成）
+# ============================================================================
+[tts]
+# base_url = "https://tts-api.com"
+# app_id = "your_app_id"
+# app_secret = "your_app_secret"
+
+# ============================================================================
+# 腾讯云 COS 存储配置（可选，用于云端存储）
+# ============================================================================
+[tencos]
+enabled = false  # 是否启用腾讯云 COS 存储
+# cos_bucket_url = "https://your-bucket.cos.ap-guangzhou.myqcloud.com"
+# cos_secret_id = "your_secret_id"
+# cos_secret_key = "your_secret_key"
+# cos_region = "ap-guangzhou"
+# cos_bucket = "your-bucket-name"
+# sub_app_id = "your_app_id"
