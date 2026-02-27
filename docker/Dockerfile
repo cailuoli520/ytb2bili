@@ -11,10 +11,9 @@ COPY Shanghai.zone /usr/share/zoneinfo/Asia/Shanghai
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && echo "Asia/Shanghai" > /etc/timezone
 
-# 复制 arm64 可执行文件和配置文件
-COPY ytb2bili-linux-arm64 ./ytb2bili
+# 复制 amd64 可执行文件和配置文件
+COPY ytb2bili-linux-amd64 ./ytb2bili
 COPY config.toml ./config.toml
-COPY config.toml ./backend/config.toml
 
 # 创建数据目录并赋予执行权限
 RUN mkdir -p ./data ./media ./backend \
